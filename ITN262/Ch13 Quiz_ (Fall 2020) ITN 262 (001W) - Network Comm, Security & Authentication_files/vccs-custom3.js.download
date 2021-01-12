@@ -1,0 +1,1772 @@
+// ENV and INST javascript objects are full of good stuff
+
+// by setting this we can set preferences in individual college configurations
+var collegePrefs = [];
+
+collegePrefs.BRCC = {};
+collegePrefs.CVCC = {};
+collegePrefs.DSLCC = {};
+collegePrefs.DCC = {};
+collegePrefs.ESCC = {};
+collegePrefs.GCC = {};
+collegePrefs.JSRCC = {};
+collegePrefs.JTCC = {};
+collegePrefs.LFCC = {};
+collegePrefs.MECC = {};
+collegePrefs.NRCC = {};
+collegePrefs.NVCC = {};
+collegePrefs.PHCC = {};
+collegePrefs.PDCCC = {};
+collegePrefs.PVCC = {};
+collegePrefs.RCC = {};
+collegePrefs.SSVCC = {};
+collegePrefs.SWVCC = {};
+collegePrefs.TNCC = {};
+collegePrefs.TCC = {};
+collegePrefs.VHCC = {};
+collegePrefs.VWCC = {};
+collegePrefs.WCC = {}; 
+
+
+// https://api.jquery.com/jquery.getscript/
+jQuery.cachedScript = function( url, options ) {
+ 
+  // Allow user to set any option except for dataType, cache, and url
+  options = $.extend( options || {}, {
+    dataType: "script",
+    cache: true,
+    url: url
+  });
+ 
+  // Use $.ajax() since it is more flexible than $.getScript
+  // Return the jqXHR object so we can chain callbacks
+  return jQuery.ajax( options );
+};
+
+
+function setPref(college, attribute, value){
+	collegePrefs[college][attribute] = value;
+}
+	
+
+/**
+// @name        Admin Course Links
+// @namespace   https://github.com/robert-carroll/ccsd-canvas
+// @author      Robert Carroll <robert.c@nv.ccsd.net>
+**/
+
+var ccsd = {
+    util: {}
+}
+
+// https://gist.github.com/ryanflorence/5817898
+ccsd.util.onPage = function(rex, fn, fnfail) {
+    'use strict';
+
+    var match = location.pathname.match(rex);
+
+    if (typeof fn !== 'undefined' && match) {
+        return fn();
+    }
+    if (typeof fnfail !== 'undefined' && !match) {
+        return fnfail();
+    }
+    return match ? match : false;
+}
+
+ccsd.util.hasAnyRole = function() {
+    'use strict';
+
+    var roles = Array.prototype.slice.call(arguments, 0),
+        i;
+    // so it doesn't generate an error on login page
+    if (typeof ENV.current_user_roles === 'undefined' || !ENV.current_user_roles) {
+        return false;
+    }
+    for (i = 0; i < roles.length; i++) {
+        if (ENV.current_user_roles.indexOf(roles[i]) !== -1)
+            return true;
+    }
+    return false;
+}
+
+function ismsie() {
+
+    var ua = window.navigator.userAgent;
+    var msie = ua.indexOf("MSIE ");
+
+    if (msie > 0 || !!navigator.userAgent.match(/Trident.*rv\:11\./))  // If Internet Explorer, return version number
+    {
+        return true;
+    }
+    else  // If another browser, return 0
+    {
+        return false;
+    }
+
+    return false;
+}
+
+// sub-accounts enhancement
+// https://github.com/robert-carroll/ccsd-canvas/tree/main/admintray-subaccmenu
+if (ccsd.util.hasAnyRole('root_admin') && !ismsie()) {
+  // used for search results, result:parent, see documentation for more details
+  var show_results_parent = {4:2}
+  // async load the sub account menu script
+  $.ajax({
+    url: 'https://courses.vccs.edu/admintray-subaccmenu.min.js',
+    dataType: 'script',
+    cache: true,
+    data: {skipd: JSON.stringify(show_results_parent)}
+  })
+}
+
+// enhance course results by adding sub-links
+function addCourseLinks() {
+    //'use strict';
+
+    // onPage(/^\/accounts\/\d+$/, function() {
+
+    // use this -if- you don't want to include onPage, check line 30 and 72
+    if(/^\/accounts\/\d+$/.test(window.location.pathname) && !ismsie()) {
+
+        var links = {
+            'users' : 'People',
+            'grades' : 'Grades',
+            //'settings': 'Settings',
+            'statistics' : 'Statistics',
+            'analytics' : 'Analytics',
+            'quickEnroll();' : 'Quick Enroll',
+            // 'announcements' : 'Announcements',
+            // 'assignments' : 'Assignments',
+            // 'discussion_topics' : 'Discussions',
+            // 'files' : 'Files',
+            // 'modules' : 'Modules',
+            // 'outcomes':'Outcomes',
+            // 'pages':'Pages',
+            // 'quizzes':'Quizzes',
+            // 'assignments/syllabus' : 'Syllabus',
+        };
+        if(Object.keys(links).length <= 0) return;
+
+        const el = 'tbody[data-automation="courses list"] tr td:nth-child(2)';
+        const mark = 'rc-course-links';
+
+		let targets = document.querySelectorAll(el + ' > a'),
+			count = targets.length;
+		let marked = document.querySelectorAll(el + ' > a + .' + mark);
+		let child, parent;
+		if (targets.length > marked.length) {
+			for (let i = 0; i < count; i++) {
+				if (!targets[i].querySelector('.' + mark)) {
+					child = addLinks(targets[i].href, mark);
+					parent = targets[i].parentNode;
+					if (parent && child) {
+						parent.appendChild(child);
+					}
+				}
+			}
+		}
+        
+        function addLinks (base, mark) {
+            let div = document.createElement('div');
+            div.classList.add(mark);
+            let ul = document.createElement('ul'), item, a;
+            Object.keys(links).forEach(function(key) {
+                item = document.createElement('li');
+                a = document.createElement('a');
+                a.href = base + "/" + key;
+				if (key.indexOf(';')>-1){
+					var courseid=base.split('/')[4];
+					a.href='javascript:' + key.replace('(','(' + courseid);
+				}
+                a.textContent = links[key];
+                item.appendChild(a);
+                ul.appendChild(item);
+            });
+            div.appendChild(ul);
+            return div;
+        }
+        
+	}
+}
+
+function quickEnroll(courseid){
+	var url='/api/v1/courses/' + courseid + '/enrollments';
+	var data='enrollment[user_id]=' + ENV.current_user_id + '&enrollment[type]=TaEnrollment&enrollment[enrollment_state]=active';
+
+	$.ajax({
+		url: url,
+		type: 'POST',
+		data: data,
+		success: function(data) {
+			alert('Enrolled as TA');
+			}
+		});
+}
+
+function quickUnEnroll(courseid){
+	// get /api/v1/courses/71266/enrollments?user_id=3
+	// then DELETE to /api/v1/courses/71266/enrollments/43278?task=delete
+	var url='/api/v1/courses/' + courseid + '/enrollments?user_id='+ ENV.current_user_id;
+
+	jQuery.getJSON(url,function( data ) {
+		$.each( data, function( key, val ) {
+			console.log(val.id);
+			var unenrollURL='/api/v1/courses/' + courseid + '/enrollments/' + val.id + '?task=delete';
+			console.log(unenrollURL);
+			$.ajax({
+				url: unenrollURL,
+				type: 'DELETE',
+				success: function(data) {
+					alert('Enrollment removed from course');
+					}
+				});
+		});
+	});
+}
+
+// search and replace
+// performance issues
+function replaceInText(el, searchFor, replacement) {
+	//console.log(searchFor);
+	//console.log(replacement);
+	// console.log(el);
+	var pattern = new RegExp(searchFor, "g");
+	$(el).find("a[href*='"+searchFor+"']").each(function() {
+		//console.log('Contains ' + searchFor);
+	});
+
+	$(el).html(function () {
+			return $(this).html().replace(pattern, replacement); 
+		});
+		//.replace(pattern,replacement);
+}
+
+function replaceInNode(el){
+	var fieldsToWork = ['ENV.sis_course_id',
+						'ENV.current_user.display_name', 
+						'ENV.USER_EMAIL',
+						'sessionStorage.sis_user_id', 
+						'sessionStorage.login_id', 
+						'sessionStorage.course_name'];
+	for (var i=0; i<fieldsToWork.length; i++){
+		var searchFor = fieldsToWork[i];
+		var re = new RegExp(searchFor, "g");
+		if (eval(fieldsToWork[i]) && el.innerHTML){
+			// el.innerHTML = el.innerHTML.replace(re, eval(fieldsToWork[i]));
+			if (el.innerHTML.indexOf(searchFor)>-1){
+				replaceInText(el,searchFor,eval(fieldsToWork[i]));
+			}
+		}
+	}
+}
+
+// this is probably more trouble than it is worth
+function replaceLocalVariables(){
+	var user_content=document.getElementsByClassName('user_content');
+
+	Array.prototype.forEach.call(user_content, function(el) {
+		replaceInNode(el);
+	});
+	
+	if ( window.location.pathname.indexOf('accounts')>-1 
+		|| window.location.pathname.indexOf('quizzes')>-1 
+		|| window.location.pathname.indexOf('items')>-1 
+		|| window.location.pathname.indexOf('modules')>-1
+		|| document.getElementById('context_modules')) {
+		return;
+	}
+	
+	if (window.location.pathname.indexOf('gradebook')>-1) {
+		return;
+	}
+
+	if ($('[id^=tinymce]').length==0 && document.getElementById('content')){
+		replaceInNode(document.getElementById('content'));
+	}
+}
+
+
+
+function storeLocalVariables(){
+	if (!sessionStorage.sis_user_id){
+		$.get('/api/v1/users/self', function (_user) {
+					sessionStorage.sis_user_id=_user.sis_user_id;
+					sessionStorage.login_id=_user.login_id;
+					// replaceLocalVariables();
+				});
+	}
+	
+	if (/^\/courses\/[0-9]+/.test(window.location.pathname)){
+		if ($('#breadcrumbs a') && $('#breadcrumbs a')[1]){
+			ENV.sis_course_id=$('#breadcrumbs a')[1].innerText;
+		}
+	}	
+	
+}
+
+function removeExportButton(){
+	// only teachers, admins can export
+	if (/^\/courses\/[0-9]+\/settings$/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('teacher') > -1 || 
+			ENV.current_user_roles.indexOf('admin') > -1 || 
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+	) {
+	  $('aside#right-side a[href$="/content_exports"]').remove();
+	}
+}
+
+function removeResetDeleteButton(){
+	//admins only can reset or delete except for DEVL
+	if (/^\/courses\/[0-9]+\/settings$/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('admin') > -1 || 
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+	) {
+		if (document.getElementById('course_course_code').innerText.indexOf('DEVL') == -1){
+			$('aside#right-side a[href$="/reset"]').remove();
+		}
+	}
+}
+
+function addTitlesToCalendarIcons(){
+	// titles for icons
+	if (/^\/profile\/communication$/.test(window.location.pathname)){
+			//$(document).ajaxSuccess(function( event, xhr, settings ) {
+				$(".icon-check").prop('title', 'Right away');
+				$(".icon-x").prop('title', 'Never');
+				$(".icon-calendar-month").prop('title', 'Weekly');
+				$(".icon-clock").prop('title', 'Daily');
+			//});
+	}
+}
+
+function removePlusPeopleButton(){
+	//admins only can add people to SIS Courses
+	if (/^\/courses\/[0-9]+\/users$/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('admin') > -1 || 
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+	) {
+		if (/^[A-Z][A-Z].*(SP|FA|SU)[0-9][0-9]$/.test(ENV.sis_course_id) && ! /^(TN293|PV282|TC295|NV280).*$/.test(ENV.sis_course_id) && ! /^JT290.NSG.*$/.test(ENV.sis_course_id)){
+			$('#addUsers').remove();
+		}
+	}
+}
+
+function removeConcludeButton(){
+	if (!( collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].removeConcludeButtonPref )){
+		return;
+	}
+	//admins only can reset or delete except for DEVL
+	if (/^\/courses\/[0-9]+\/settings$/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('admin') > -1 || 
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+	) {
+		//if (document.getElementById('course_course_code').innerText.indexOf('DEVL') == -1){
+			$('aside#right-side a[href$="conclude"]').remove();
+		//}
+	}
+}
+
+function removeChooseHomePageButton(){
+	if (!( collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].removeChooseHomePageButtonPref )){
+		return;
+	}
+	//admins only can reset or delete except for DEVL
+	if (/^\/courses\/[0-9]+/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('admin') > -1 || 
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+		&& /^[A-Z][A-Z].*(SP|FA|SU)[0-9][0-9]$/.test(ENV.sis_course_id)
+	) {
+		$('aside#right-side #choose_home_page').remove();
+	}
+}
+
+function setRosterSorting(){
+	if (/^\/courses\/[0-9]+\/users$/.test(window.location.pathname)){
+		$(document).ajaxSuccess(function() {
+		  makeRosterSortable();
+		  removePlusPeopleButton();
+		});
+	}
+
+}
+
+function addUnenrollToCourseListing(){
+	//admins only can quick unenroll
+	if (/^\/courses$/.test(window.location.pathname) &&
+			(
+				ENV.current_user_roles.indexOf('admin') > -1 || 
+				ENV.current_user_roles.indexOf('root_admin') > -1
+			)
+		) {
+		$(".course-list-table-row").each(function(){
+			//console.log(this.childNodes[1].childNodes[1].dataset.courseId);
+			$(this).find('.course-list-course-title-column').append('<div class="rc-course-links"><ul><li><a href="javascript:quickUnEnroll(' + this.childNodes[1].childNodes[1].dataset.courseId + ');">Unenroll</a></li></ul></div>');
+		  });
+	}
+}
+
+function sortTerms(){
+	// sort terms listing properly
+	if(/^\/courses\/\d+\/settings$/.test(window.location.pathname)) {
+
+		if (document.getElementById('course_course_code') && document.getElementById('course_enrollment_term_id')){
+
+			var current_course_id=document.getElementById('course_course_code').value;
+			var sel = document.getElementById('course_enrollment_term_id');
+			if (sel.options){
+				var opt = sel.options[sel.selectedIndex];
+				var colID = opt.text.split(' ')[0];
+				if (colID == 'Default'){
+					colID = current_course_id.substring(0,2);
+				}
+				// pdcc, ssvcc, rcc problem
+				if (colID == 'PC') colID = 'PD';
+				if (colID == 'SV') colID = 'SSV';
+				if (colID == 'SR') colID = 'JSR';
+
+				sortTermListStraight(sel, opt, colID);
+			}
+		}
+	}
+
+	// sort terms listing on the course search screen properly
+	// and add sub-links to each course
+	if(/^\/accounts\/\d+$/.test(window.location.pathname)) {
+		if (document.getElementsByTagName('select')){
+			$(document).ajaxSuccess(function(event, xhr, settings) {
+			  if ( settings.url.indexOf('terms')>-1){
+				// sortTermList not working as of June 2020
+				sortTermList(1);
+				addCourseLinks();
+			  }
+			  if ( settings.url.indexOf('courses')>-1){
+				addCourseLinks();
+			  }
+			  var baseurl = settings.url.split('?')[0];
+			  if (/[0-9]+$/.test(baseurl) || settings.url.indexOf('terms')>-1){
+				  if ($("[aria-label='Add a New Course'] Select").length==2){
+					sel = document.getElementById($("[aria-label='Add a New Course'] Select")[1].id);
+					//sortTermListStraight(sel, sel[0], null);
+					sessionStorage.termListSorted=false;
+				  }
+			  }
+			});	
+			sortCourseSearchTermList();
+		}
+	}
+}
+
+// new approach to sorting react-generated component
+// when there is a mutation, see if the object exists
+// if it does, sort it
+
+function initiateTermSort(){
+	var selector="ul[data-testid='Group:Active Terms']";
+	var thisObject = $(selector);
+	
+	if (thisObject.length>0){
+		//console.log(thisObject);
+		if (!JSON.parse(sessionStorage.termListSorted)){
+			//console.log('sorting');
+			sortUnorderedList(selector);
+			sortUnorderedList("ul[data-testid='Group:Past Terms']");
+			sessionStorage.termListSorted=true;
+		}
+	}
+	else {
+		sessionStorage.termListSorted=false;
+	}
+}
+
+function replaceAskInstructor() {
+	if (ENV.primaryAccount=='NVCC'){
+		var selector="#help_tray a:contains('Ask Your Instructor')";
+		var thisObject = $(selector);
+		
+		if (thisObject.length>0){
+			//console.log(thisObject);
+			//console.log('swapping');
+			thisObject.after('<a href="https://www.nvcc.edu/canvas/" target="_blank">NOVA Resources</a>');
+			thisObject.remove();
+			$("#help_tray div:contains('Questions are submitted to your instructor')").text('Student guides, videos, and tips');
+		}
+	}
+}
+
+
+function mCallback(mutations) {
+	initiateTermSort();
+}
+
+// this is really a generic mutation function now
+// and various callbacks can be done in mCallback
+// which means it really needs to be cleaned up
+function sortCourseSearchTermList(){
+	// create an instance of `MutationObserver` named `observer`, 
+	// passing it the callback function
+
+	var observer = new MutationObserver(mCallback);
+
+	// not sorted by default
+	sessionStorage.termListSorted=false;
+
+	// because react has the whole dom in memory, I think document is the only option
+	observer.observe(document, {subtree: true, childList: true});
+}
+
+function sortUnorderedList(selector) {
+	$(selector).children("li").sort(asc_sort).appendTo(selector);
+}
+
+// customized sorting function puts the primary account at the top of the list
+function asc_sort(a, b){
+	var atext=$(a).text();
+	var btext=$(b).text();
+	if ($(b).text().indexOf(ENV.primaryAccount)==0){
+		btext = "1" + $(b).text();
+	}
+	if ($(a).text().indexOf(ENV.primaryAccount)==0){
+		atext = "1" + $(a).text();
+	}
+	var result = (btext < atext) ? 1 : -1;
+    return result;    
+}
+
+// decending sort
+function dec_sort(a, b){
+    return ($(b).text()) > ($(a).text()) ? 1 : -1;    
+}
+
+
+function sortTermListStraight(sel,opt, colID){
+	// convert OPTIONs NodeList to an Array
+	// - keep in mind that we're using the original OPTION objects
+	var ary = (function(nl) {
+	var a = [];
+	for (var i = 0, len = nl.length; i < len; i++)
+	  a.push(nl.item(i));
+	return a;
+	})(sel.options);
+
+	// sort OPTIONs Array
+	//ary.sort(function(a,b){
+	//	return a.text < b.text ? -1 : a.text > b.text ? 1 : 0;
+	//});
+	ary.sort(asc_sort);
+
+	// remove all OPTIONs from SELECT (don't worry, the original
+	// OPTION objects are still referenced in "ary") ;-)
+	for (var i = 0, len = ary.length; i < len; i++){
+		if (ary[i].text!='Default Term'){
+			sel.remove(ary[i].index);
+		}	
+	}
+
+	// (re)add re-ordered OPTIONs to SELECT
+	for (var i = 0, len = ary.length; i < len; i++){
+		if (ary[i].text.indexOf(colID)==0){
+			ary[i].style.fontWeight='bold';
+		}
+		if (ary[i].text!='Default Term'){
+			sel.add(ary[i], null);
+		}
+	}
+	opt.selected=true;
+}
+
+
+// sorting the people listing in a course
+function vccs_comparer(index) {
+    return function(a, b) {
+        var valA = vccs_getCellValue(a, index), valB = vccs_getCellValue(b, index)
+        return $.isNumeric(valA) && $.isNumeric(valB) ? valA - valB : valA.toString().localeCompare(valB)
+    }
+}
+function vccs_getCellValue(row, index){ return $(row).children('td').eq(index).text() }
+
+function makeRosterSortable(){
+	$('.roster th').click(function(){
+		var table = $(this).parents('table').eq(0)
+		var rows = table.find('tr:gt(0)').toArray().sort(vccs_comparer($(this).index()))
+		this.asc = !this.asc
+		if (!this.asc){
+			rows = rows.reverse();
+			}
+		for (var i = 0; i < rows.length; i++){table.append(rows[i])}
+		});
+	$('.roster th').css('cursor','pointer');
+	$('.roster th').find('span').remove();
+	$('.roster th').append("<span class=\"vhidden\">&nbsp;&#9660;</span>");
+	$('.roster th .vhidden').css('display','none');
+	$('.roster th').hover(function(){
+		  $(this).find('span').css("display", "inline-block");
+		  }, function(){
+		  $(this).find('span').css("display", "none");
+		});
+}
+
+function sortTermList(tries){
+	// var current_course_id=document.getElementById('course_course_code').value;
+	var sel = document.getElementsByTagName('select')[0];
+	// var opt = sel.options[sel.selectedIndex];
+	var optGroupArr = document.querySelectorAll('select > optgroup');
+	
+	if (tries > 12) {
+		return;
+	}
+	//console.log(tries);
+	//console.log("optGroupArr: " + optGroupArr.length);
+	//console.log(optGroupArr[1]);
+	if (optGroupArr.length < 5) {
+		//tries++;
+		//setTimeout(function(){ sortTermList(tries); }, 4000);
+		return;
+	}
+	
+	for (x=1; x<3; x++){
+		var targetGroup=optGroupArr[x];
+
+		// convert OPTIONs NodeList to an Array
+		// - keep in mind that we're using the original OPTION objects
+		var ary = (function(nl) {
+		var a = [];
+		for (var i = 0, len = nl.length; i < len; i++)
+		  a.push(nl.item(i));
+		return a;
+		})(targetGroup.childNodes);
+		
+		//console.log(ary);
+
+		// sort OPTIONs Array
+		ary.sort(function(a,b){
+		return a.text < b.text ? -1 : a.text > b.text ? 1 : 0;
+		});
+
+		//console.log(ary);
+
+		// remove all OPTIONs from SELECT (don't worry, the original
+		// OPTION objects are still referenced in "ary") ;-)
+		for (var i = 0, len = ary.length; i < len; i++){
+			if (ary[i].text!='Default Term'){
+				targetGroup.removeChild(ary[i]);
+			}	
+		}
+
+		// (re)add re-ordered OPTIONs to SELECT
+		for (var i = 0, len = ary.length; i < len; i++){
+			if (ary[i].text!='Default Term'){
+				targetGroup.appendChild(ary[i]);
+			}
+		}
+		//opt.selected=true;
+	}
+}
+
+// Updated Aug 28, 2019
+// In Google Analytics you'll need to set up custom dimensions as follows
+// Custom Dimension 1 = Canvas User ID --- Scope = User
+// Custom Dimension 2 = Archived --- Scope = User
+// Custom Dimension 3 = Canvas User Role --- Scope = User
+// Custom Dimension 4 = Canvas Course ID --- Scope = Hit
+// Custom Dimension 5 = Canvas Course Name --- Scope = Hit
+// Custom Dimension 6 = Canvas Sub-Account ID --- Scope = Hit
+// Custom Dimension 7 = Canvas Term ID --- = Scope = Hit
+// Custom Dimension 8 = Canvas Course Role --- Scope = Hit
+
+(function (i, s, o, g, r, a, m) {
+    i['GoogleAnalyticsObject'] = r;
+    i[r] = i[r] || function () {
+        (i[r].q = i[r].q || []).push(arguments)
+    }, i[r].l = 1 * new Date();
+    a = s.createElement(o),
+        m = s.getElementsByTagName(o)[0];
+    a.async = 1;
+    a.src = g;
+    m.parentNode.insertBefore(a, m)
+})(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'custom_ga');
+
+function removeStorage(key) {
+    try {
+        localStorage.removeItem(key);
+        localStorage.removeItem(key + '_expiresIn');
+    } catch (e) {
+        console.log('removeStorage: Error removing key [' + key + '] from localStorage: ' + JSON.stringify(e));
+        return false;
+    }
+    return true;
+}
+
+function getStorage(key) {
+    var now = Date.now(); //epoch time, lets deal only with integer
+    // set expiration for storage
+    var expiresIn = localStorage.getItem(key + '_expiresIn');
+    if (expiresIn === undefined || expiresIn === null) {
+        expiresIn = 0;
+    }
+
+    if (expiresIn < now) { // Expired
+        removeStorage(key);
+        return null;
+    } else {
+        try {
+            var value = localStorage.getItem(key);
+            return value;
+        } catch (e) {
+            console.log('getStorage: Error reading key [' + key + '] from localStorage: ' + JSON.stringify(e));
+            return null;
+        }
+    }
+}
+
+function setStorage(key, value, expires) {
+    if (expires === undefined || expires === null) {
+        expires = (24 * 60 * 60); // default: seconds for 6 hours (6*60*60)
+    } else {
+        expires = Math.abs(expires); //make sure it's positive
+    }
+
+    var now = Date.now(); //millisecs since epoch time, lets deal only with integer
+    var schedule = now + expires * 1000;
+    try {
+        localStorage.setItem(key, value);
+        localStorage.setItem(key + '_expiresIn', schedule);
+    } catch (e) {
+        console.log('setStorage: Error setting key [' + key + '] in localStorage: ' + JSON.stringify(e));
+        return false;
+    }
+    return true;
+}
+
+async function coursesRequest(courseId) {
+    // 
+    let response = await fetch('/api/v1/users/self/courses?per_page=100');
+    let data = await response.text();
+    data = data.substr(9);
+    data = JSON.parse(data)
+    var stringData = JSON.stringify(data)
+    setStorage('ga_enrollments', stringData, null)
+    var course = parseCourses(courseId, stringData)
+    return course
+};
+
+function parseCourses(courseId, courseData) {
+    if (courseData != undefined) {
+        let data = JSON.parse(courseData);
+        //console.log(data)
+        for (var i = 0; i < data.length; i++) {
+            // console.log(data[i]['id'] + " " + courseId)
+            if (data[i]['id'] == courseId) {
+                return data[i]
+            }
+        }
+    }
+    return null
+}
+
+function gaCourseDimensions(course) {
+	ENV.sis_course_id=course['course_code'];
+	sessionStorage.course_name=course['name'];
+    custom_ga('set', 'dimension5', course['id']);
+    custom_ga('set', 'dimension6', course['course_code']);
+    custom_ga('set', 'dimension7', course['account_id']);
+    custom_ga('set', 'dimension1', ENV.primaryAccount);
+    // custom_ga('set', 'dimension7', course['enrollment_term_id']);
+    custom_ga('set', 'dimension3', course['enrollments'][0]['type']);
+    custom_ga('send', 'pageview');
+    return
+}
+
+function googleAnalyticsCode(trackingID) {
+    var userId, userRoles, attempts, courseId;
+	if (typeof ENV.primaryAccount == 'undefined'){
+		ENV.primaryAccount="VCCS";
+	}
+
+    custom_ga('create', trackingID, 'auto');
+    userId = ENV["current_user_id"];
+    userRoles = ENV['current_user_roles'];
+	if (/[0-9]+/.test(userRoles)){
+		userRoles="student";
+	}
+    custom_ga('set', 'dimension1', ENV.primaryAccount);
+    custom_ga('set', 'userId', userId);
+    custom_ga('set', 'dimension2', userId);
+    custom_ga('set', 'dimension4', userRoles);
+    courseId = window.location.pathname.match(/\/courses\/(\d+)/);
+    if (courseId) {
+        courseId = courseId[1];
+        attempts = 0;
+        try {
+            let courses = getStorage('ga_enrollments')
+            if (courses != null) {
+                var course = parseCourses(courseId, courses);
+                if (course === null) {
+                    // console.log("course_id not found in cache, retrieving...")
+                    coursesRequest(courseId).then(course => {
+                        if (course === null) {
+                            // console.log("course data not found")
+                            custom_ga('set', 'dimension5', courseId);
+                            custom_ga('send', 'pageview');
+                        } else {
+                            gaCourseDimensions(course)
+                        }
+                    });
+                } else {
+                    // console.log("course found in cache")
+                    gaCourseDimensions(course)
+                }
+            } else {
+                // console.log("cache not found, retrieving cache data")
+                coursesRequest(courseId).then(course => {
+                    if (course === null) {
+                        // console.log("course data not found")
+                        custom_ga('set', 'dimension5', courseId);
+                        custom_ga('send', 'pageview');
+                    } else {
+                        gaCourseDimensions(course)
+                    }
+                });
+            }
+        } catch (err) {
+            attempts += 1;
+            if (attempts > 5) {
+                custom_ga('set', 'dimension5', courseId);
+                custom_ga('send', 'pageview');
+                return;
+            };
+        };
+    } else {
+        custom_ga('send', 'pageview');
+    };
+};
+
+// helper function for addCollegeResourceButton to have a unique element id
+function makeid(length) {
+   var result           = '';
+   var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+   var charactersLength = characters.length;
+   for ( var i = 0; i < length; i++ ) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+   }
+   return result;
+}
+
+function addCollegeResourceButton(url, strTitle, icon, role, menuitem){
+	// menuitem is the menu element after which to place the new icon
+	
+	if (strTitle == null){
+		strTitle = 'Resources';
+	}
+
+	if (role !== null && role !== undefined){
+		if (ENV.current_user_roles.indexOf(role) == -1){
+			return;
+		}
+	}
+
+	if (url !== null){
+		var newid = "_" + makeid(3);
+		// clone help
+		
+		var newel = $('#global_nav_help_link').parent().clone().prop('id','college_resources_link'+newid);
+		if (menuitem !== undefined && menuitem !== null){
+			$(menuitem).after(newel);
+		}
+		else {
+			// at bottom
+			newel.appendTo('#menu');
+		}
+
+		// change the id of the link in the new menu item
+		$("#college_resources_link" + newid + " a[data-track-label='help button']").prop('id','college_resources_link_href'+newid);
+
+		// change text
+		$('#college_resources_link_href' + newid + ' .menu-item__text').text(strTitle);
+
+		// change graphic
+		if ($('#college_resources_link' + newid + ' .menu-item-icon-container svg')[0]){
+			$('#college_resources_link' + newid + ' .menu-item-icon-container svg')[0].setAttribute('viewBox','0 0 1920 1920');
+		}
+		// http://instructure.github.io/instructure-icons/#demos/sprites/Line.html info
+		var info = '<g stroke="none" stroke-width="1" fill-rule="evenodd"><path d="M960.175 1603.365c-354.283 0-642.544-288.26-642.544-642.544 0-354.276 288.26-642.537 642.544-642.537s642.545 288.261 642.545 642.537c0 354.283-288.261 642.544-642.545 642.544m0-1445.719c-442.874 0-803.174 360.308-803.174 803.175 0 442.954 360.3 803.182 803.174 803.182 442.875 0 803.175-360.228 803.175-803.182 0-442.867-360.3-803.175-803.175-803.175"></path><path d="M812 937.007C812 906.075 837.077 881 868.002 881h183.996c30.93 0 56.002 25.08 56.002 56.007v506.986c0 30.932-25.077 56.007-56.002 56.007H868.002c-30.93 0-56.002-25.08-56.002-56.007V937.007zM960 733c86.156 0 156-69.844 156-156s-69.844-156-156-156-156 69.844-156 156 69.844 156 156 156z"></path></g>';
+		var flag = '<g stroke="none" stroke-width="1" fill-rule="evenodd"><path d="M243 1757h159.333V163H243zM1625.926 566.792l-1035.667-398.5c-24.458-9.325-52.022-6.137-73.692 8.687a79.727 79.727 0 0 0-34.575 65.753v797c0 26.221 12.906 50.769 34.575 65.673 13.464 9.245 29.238 14.027 45.092 14.027 9.64 0 19.359-1.833 28.6-5.34l1035.667-398.5c30.751-11.796 51.066-41.444 51.066-74.36 0-32.996-20.315-62.565-51.066-74.44"></path></g>';
+		var peer = '<g stroke="none" stroke-width="1" fill-rule="evenodd"><path d="M1642.607 277.398C1568.012 202.399 1467.952 160 1360.025 160c-220.586 0-399.975 179.463-399.975 399.992h133.325c0-147.064 119.593-266.661 266.65-266.661 71.862 0 137.658 29.399 187.388 79.265l-120.726 120.73H1760V160l-117.393 117.398zM1360.025 826.686c-71.796 0-137.591-29.333-187.388-79.265l120.726-120.73H960.05v333.326l117.593-117.598c74.528 74.265 176.322 117.598 282.382 117.598 220.586 0 399.975-179.397 399.975-399.992h-133.325c0 147.064-119.593 266.661-266.65 266.661zM447.82 921c71.906 0 133.942 33.472 172.01 84.159-63.447 51.643-101.514 122.412-101.514 203.702 0 27.734 4.23 52.6 12.689 77.464-26.789 10.52-53.577 18.171-83.185 18.171-117.023 0-211.487-86.071-211.487-191.27 0-105.198 94.464-191.27 211.487-191.27V921zm352.281 130.064c106.1 0 191.748 86.286 191.748 191.748 0 105.461-85.647 191.748-191.748 191.748-106.1 0-191.748-86.287-191.748-191.748 0-105.462 85.648-191.748 191.748-191.748zm-609.007 210.71c55.094 65.344 130.687 105.062 216.531 107.625-34.594 48.687-56.375 107.625-56.375 171.687v84.563H95V1412.96c0-66.625 39.719-124.281 96.094-152.468v1.28zm832.812 128.125c56.375 28.187 96.094 85.844 96.094 152.469v212.687H479.375v-212.687c0-66.625 39.719-124.282 96.094-152.47 57.656 67.907 135.812 107.626 224.218 107.626 88.407 0 166.563-41 224.22-107.625z"></path></g>';
+		var star = '<g stroke="none" stroke-width="1" fill-rule="evenodd"><path d="M1439.99 1758.35c-15.439 0-30.879-4.48-44.398-13.44L960 1454.516 524.408 1744.91c-27.84 18.56-64.399 17.92-91.518-1.92-27.12-19.76-39.04-54.399-29.76-86.638l147.038-514.71-366.713-366.714c-22.88-22.8-29.76-57.279-17.36-87.118 12.4-29.92 41.6-49.439 73.919-49.439h430.551l217.836-435.752c27.12-54.159 116.078-54.159 143.198 0l217.836 435.752h430.551c32.32 0 61.52 19.52 73.919 49.439 12.4 29.84 5.52 64.319-17.36 87.118l-366.713 366.713 147.037 514.71c9.28 32.24-2.64 66.88-29.759 86.64-14 10.239-30.56 15.359-47.12 15.359"></path></g>';
+		var iconToShow = info;
+		if (icon !== undefined && icon !== null){
+			if (icon.length==4){
+				iconToShow = eval(icon);
+			}
+			else {
+				iconToShow = icon;
+			}
+		}
+		$('#college_resources_link' + newid + ' .menu-item-icon-container svg path').remove();
+		$('#college_resources_link' + newid + ' .menu-item-icon-container svg').append(iconToShow);
+		//https://stackoverflow.com/questions/3642035/jquerys-append-not-working-with-svg-element
+		$("#college_resources_link" + newid).html($("#college_resources_link" + newid).html());
+
+		// change link itself
+		$('#college_resources_link_href'+ newid).attr('href',url);
+	}
+}
+
+// if the window is smaller the vertical left menu will add a scrollbar
+// this decreases the size of the menu item area which causes odd text display issues
+// TD 15568997
+function fixMenuDisplay(){
+	if (typeof header == 'undefined'){
+		return;
+	}
+	if ($("#header").length > 0){
+		var scrollbarWidth = header.offsetWidth - header.clientWidth;
+		if (scrollbarWidth != 0){ 
+			$("#header").width(header.offsetWidth + scrollbarWidth) 
+		}
+	}
+}
+
+
+// set the unique url for the Ask a Librarian link
+function setLibraryLink(college){
+	$("body").on('DOMSubtreeModified', "#help_tray a", function() {
+		// console.log('Library Chat');
+		updateLibraryChatLink(college)
+	});
+}
+
+function updateLibraryChatLink(college){
+	// var libChatArr = {
+		// "BRCC" : "12973",
+		// "CVCC" : "12974",
+		// "DSLCC" : "12975",
+		// "DCC" : "12976",
+		// "ESCC" : "12977",
+		// "GCC" : "12987",
+		// "JSRCC" : "12988",
+		// "JTCC" : "12991",
+		// "LFCC" : "12992",
+		// "MECC" : "12978",
+		// "NRCC" : "12979",
+		// "NVCC" : "12993",
+		// "PHCC" : "12980",
+		// "PDCCC" : "12981",
+		// "PVCC" : "12982",
+		// "RCC" : "12994",
+		// "SSVCC" : "12996",
+		// "SWVCC" : "12983",
+		// "TNCC" : "12998",
+		// "TCC" : "12971",
+		// "VHCC" : "12984",
+		// "VWCC" : "12985",
+		// "WCC" : "12986"
+		// };
+	// 2020/05/26
+	var libChatArr = {
+		"BRCC": "https://vccs.libanswers.com/blue-ridge",
+		"CVCC": "https://vccs.libanswers.com/central-virginia",
+		"DCC": "https://danville.libguides.com/ask",
+		"DSLCC": "https://dslcc.vccs.libguides.com/askalibrarian",
+		"ESCC": "https://es.vccs.libguides.com/c.php?g=1037079 ",
+		"GCC": "https://germanna.libguides.com/c.php?g=245675&p=7499357",
+		"JSRCC": "https://libguides.reynolds.edu/askus",
+		"JTCC": "https://vccs.libanswers.com/john-tyler/",
+		"LFCC": "https://lfcc.libanswers.com/",
+		"MECC": "https://mecc.libguides.com/c.php?g=1032089&p=7480737&preview=92951b661cb4499fdb8f48fbe2b44598",
+		"NRCC": "https://www.nr.edu/library/ask.php",
+		"NVCC": "https://libguides.nvcc.edu/AskaLibrarian",
+		"PDCCC": "https://pdc.vccs.libguides.com/Library",
+		"PHCC": "https://patrickhenry.vccs.libguides.com/chat",
+		"PVCC": "https://www.pvcc.edu/student-services/library/stuck-ask-help",
+		"RCC": "https://vccs.libanswers.com/rapp",
+		"SSVCC": "https://vccs.libanswers.com/southside",
+		"SWVCC": "https://sw.vccs.libguides.com/ask_a_librarian ",
+		"TCC": "https://libguides.tcc.edu/ask-a-librarian",
+		"TNCC": "https://libanswers.tncc.edu/",
+		"VHCC": "https://www.vhcc.edu/current-students/student-services/library-/contact-us",
+		"VWCC": "https://infoguides.virginiawestern.edu/morehelp",
+		"WCC": "https://vccs.libanswers.com/wytheville"
+		};
+	// var libChatUrl = "http://www.questionpoint.org/crs/servlet/org.oclc.home.TFSRedirect?virtcategory=" + libChatArr[college];
+	var libChatUrl = libChatArr[college];
+	// allow override
+	if (collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].libraryLink){
+		libChatUrl = collegePrefs[ENV.primaryAccount].libraryLink;
+	}
+	if (libChatArr[college]){
+		//console.log(college);
+		var liblink=$('#help_tray a:contains("Ask a Librarian")');
+		if (liblink.length>0){
+			$('#help_tray a:contains("Ask a Librarian")').attr("href", libChatUrl);
+		}
+	}
+}
+
+// this has a custom css dependency
+function expandModuleByCollege(){
+	var collegeList=['DCC', 'TNCC', 'JTCC', 'JSRCC'];
+	if (collegeList.includes(ENV.primaryAccount)){
+		//console.log('module expansion');
+		expand_module(ENV.primaryAccount);
+	}
+}
+
+function collapseModules(){
+	$("#content #context_modules .content").css('display','none');
+	$("#content #context_modules .collapse_module_link").css('display','none');
+	$("#content #context_modules .expand_module_link").css('display','inline-block');
+}
+
+function showModule(obj){
+	var relatedObj = obj.getAttribute('aria-controls');
+	//console.log(relatedObj);
+	//console.log(document.getElementById(relatedObj).style.display);
+	if (document.getElementById(relatedObj).style.display == "" || document.getElementById(relatedObj).style.display == "none"){
+		obj.click();
+		// try again
+		//setTimeout(function(){ showModule(obj); },500);
+	}
+}
+
+function expand_module(college) {
+	var anchor = window.location.hash;
+	var underscore = anchor.indexOf("_") + 1;
+	var characters = anchor.length;
+	var module = anchor.substring(underscore,characters);
+	var thishref = window.location.pathname;
+	if (module =="" && sessionStorage[thishref]){
+		module = sessionStorage[thishref];
+	}
+	
+	var modules=module.split(',');
+
+	if (document.querySelectorAll("span[aria-controls^='context_module_content_']")[1] && module=="" && (college=="TNCC" || college=="DCC")) {
+		//console.log('default');
+		// finding a way to expand the default
+		document.querySelectorAll("span[aria-controls^='context_module_content_']")[1].click();
+		showModule(document.querySelectorAll("span[aria-controls^='context_module_content_']")[1]);
+		//sessionStorage[window.location.pathname]="," + document.querySelectorAll("span[aria-controls^='context_module_content_']")[1].parentNode.id;
+		;
+	}
+	
+}
+
+
+function hideInstructorHelpCommentBox(){
+	var collegeList=['NVCC', 'JSRCC', 'JTCC', 'VHCC', 'PVCC'];
+	if (collegeList.includes(ENV.primaryAccount)){
+		$("body").on('DOMSubtreeModified', "#help_tray select", function() {
+				// console.log('Contact Instructor');
+				$("#help_tray .ic-HelpDialog__form-fieldset .ic-Form-control:has(textarea)").hide();
+				$("#help_tray .ic-HelpDialog__form-fieldset .ic-Form-control:has(select) select").bind('click', function() {
+					$("#help_tray .ic-HelpDialog__form-fieldset .ic-Form-control:has(textarea)").show();
+				});
+		});
+	}
+}
+
+
+function hideInactiveusers(){
+	var collegeList=['PVCC', 'JTCC', 'LFCC', 'GCC', 'RCC', 'SWVCC', 'TNCC'];
+	if (collegeList.includes(ENV.primaryAccount)){
+		if (/^\/courses\/[0-9]+\/users$/.test(window.location.pathname)){
+			$(document).ajaxSuccess(function( event, xhr, settings ) {
+				if (settings.url.indexOf('search_term') == -1 
+					&& settings.url.indexOf('enrollment_role_id') == -1 
+					&& settings.url.indexOf('page_views') == -1){
+					$("tr:contains('inactive')").hide();
+				}
+			});
+		}
+	}
+}
+
+function isProduction(){
+	if (document.location.hostname == "learn.vccs.edu" || document.location.hostname == "vccs.instructure.com"){
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+function removePlusApp(){
+	//root admins only can add apps
+	if (/^\/courses\/[0-9]+\/settings/.test(window.location.pathname) &&
+		!(
+			ENV.current_user_roles.indexOf('root_admin') > -1
+		)
+	) {
+		$('.AddExternalToolButton').remove();
+		$('.AddApp').remove();
+		var thirdPartyToolsLink = "  <a href=\"https://docs.google.com/document/d/1Aj2ERezyRQRK6rbx_pE1fbCI61xcQD8cQGXdo7b9Meg/view\" title=\"VCCS Policy for third-party tools\" target=\"_blank\">How to add a new tool to Canvas.</a>";
+		if (document.body.innerHTML.indexOf(thirdPartyToolsLink) == -1){
+			$("#tab-tools .Header p:last-child").append(thirdPartyToolsLink);
+		}
+	}
+}
+
+function updateConferencesPage(){
+	if (/^\/courses\/[0-9]+\/conferences/.test(window.location.pathname) ) {	
+		$("#conference-alternatives-container span div span")[26].remove();
+		$("#conference-alternatives-container span div span")[12].remove();
+		var zoomObj = $("#conference-alternatives-container span div span:nth-child(2)").children(0);
+
+		zoomObj.find("div:contains('RCE')").html('Enable Zoom in your Course Navigation if it is not already there. Meetings created in the Canvas/Zoom integration are automatically added to the course calendar.');
+
+		zoomObj.find("div:contains('Enable')").next().html("All students and faculty in the VCCS have a Zoom account accessible via Canvas or MyVCCS.");
+	}
+}
+
+(function($) {
+    $.fn.changeElementType = function(newType) {
+        var attrs = {};
+
+        $.each(this[0].attributes, function(idx, attr) {
+            attrs[attr.nodeName] = attr.nodeValue;
+        });
+
+        this.replaceWith(function() {
+            return $("<" + newType + "/>", attrs).append($(this).contents());
+        });
+    }
+})(jQuery);
+
+
+function disableElement(elName){
+	// change menu element to a div
+	// copy li element to a div and hide the li
+	// console.log(elName);
+	if ( $('li:[aria-label="' + elName + '"]').length && $('li:[aria-label="' + elName + '"]').is(":visible") ){
+		// indentify the source LI item, clone it and hide the source
+		var sourceItem = $('li:[aria-label="' + elName + '"]');
+		var newItem = sourceItem.clone();
+		sourceItem.after(newItem);
+		sourceItem.hide();
+		
+		// change the new item to a div so it is not draggable
+		newItem.changeElementType("div");
+		
+		// styles
+		// get the style of the Home li
+		var baseEl = document.querySelector("#nav_enabled_list li");
+		var currstyle=document.defaultView.getComputedStyle(baseEl, "").cssText;
+		// apply the style to the newly created div
+		document.querySelector('div[aria-label="' + elName + '"]').style.cssText = currstyle;
+		// hide stuff we do not want to see on the new div
+		$('div:[aria-label="' + elName + '"] .admin-links').html("<i class=\"icon-lock\" aria-hidden=\"true\" style=\"padding-left:8px;padding-right:8px;\"></i>");
+		$('div:[aria-label="' + elName + '"] .disabled_message').hide();
+	}
+}
+
+// function enableElement(elName){
+	// change menu element to a div
+	// $('div:[aria-label="' + elName + '"]').changeElementType("li");
+// }
+
+function disableMenuOrdering(){
+	// only admins can rearrange the menu
+	// console.log('test');
+	if (!( collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].lockMenu )){
+		return;
+	}
+	// default pattern to match
+	var coursePattern = /^[A-Z][A-Z].*(SP|FA|SU)[0-9][0-9]$/;
+	if (collegePrefs[ENV.primaryAccount].lockMenu.pattern){
+		coursePattern = collegePrefs[ENV.primaryAccount].lockMenu.pattern;
+	}
+	if ( /^\/courses\/[0-9]+\/(settings|details)$/.test(window.location.pathname) && 
+		!( ENV.current_user_roles.indexOf('admin') > -1 || ENV.current_user_roles.indexOf('root_admin') > -1 ) &&
+		(coursePattern.test(ENV.sis_course_id)) &&
+		$('#nav_form').length
+		) {
+		$("#navigation_tab").click(function(){
+			disableMenuOrdering();
+		});
+		collegePrefs[ENV.primaryAccount].lockMenu.items.forEach(disableElement);
+	}
+}
+
+// JTCC wants students to not be able to click assignments
+function disableAssignmentClicking(){
+	if (!( collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].disableAssignmentClickingPref )){
+		return;
+	}
+	$('.PlannerItem-styles__title a[href*="assignments"], #planner-todosidebar-item-list a[href*="assignments"]').click(function(e) {
+		var url = new URL(e.target.href);
+		if (/^\/courses\/[0-9]+\/assignments\/[0-9]+$/.test(url.pathname)){
+			e.target.href = url.pathname.replace(/\/assignments\/[0-9]+$/, '');
+			console.log(url.pathname);
+			// $('.PlannerItem-styles__title a[href="' + url.pathname + '"], #planner-todosidebar-item-list a[href="' + url.pathname + '"]').removeAttr("href");
+			// e.preventDefault();
+		}
+	});
+}
+
+function hideAllContentImport(){
+	// on course import page, select the selective import and hide the all content option
+	if (!( collegePrefs[ENV.primaryAccount] && collegePrefs[ENV.primaryAccount].hideAllImportOption )){
+		return;
+	}
+	if ( /^\/courses\/[0-9]+\/content_migrations$/.test(window.location.pathname) && 
+		!( ENV.current_user_roles.indexOf('admin') > -1 || ENV.current_user_roles.indexOf('root_admin') > -1 ) &&
+		(/^[A-Z][A-Z].*(SP|FA|SU)[0-9][0-9]$/.test(ENV.sis_course_id)) &&
+		$('#migrationConverterContainer #converter .selectContent').length
+		) {
+		$('#migrationConverterContainer #converter .selectContent input[name="selective_import"]')[1].click();
+		$("#migrationConverterContainer #converter .content").hide();
+	}
+}
+
+// called by javascript at the account level
+// enables college-specific functionality
+function setPrimaryAccount(college){
+	console.log(college);
+	ENV.primaryAccount=college;
+	
+	setLibraryLink(college);
+	expandModuleByCollege();
+	hideInstructorHelpCommentBox();
+	hideInactiveusers();
+	removeConcludeButton();
+	removeChooseHomePageButton();
+	sortTerms();
+	disableMenuOrdering();
+}
+
+const customTips = {
+
+	tips : [
+			{
+			"selector" : '.selectContentDialog li[data-type="course_settings"]', 
+			"description" : "<strong>Not recommended</strong><br />Will overwrite your course settings", 
+			"pathMatch" : /^\/courses\/[0-9]+\/content_migrations$/
+			},
+			{
+			"selector" : '#enroll_users_form #admin_role_id', 
+			"description" : "Our <a href=\"https://docs.google.com/document/d/1boDfPFF83dLT87xbgg8kguIXzA1zCEP5zkBSnGrKgLs/\" target=\"_blank\">custom roles are defined here</a>.", 
+			"pathMatch" : /^\/accounts\/[0-9]+\/settings$/,
+			"trigger" : '#tab-users'
+			},
+			{
+			"selector" : '#external_tools .ExternalAppsRoot .Header div', 
+			"description" : "<a href=\"https://sites.google.com/email.vccs.edu/canvas/external-tools\" target=\"_blank\">How to request a new integration</a>.", 
+			"pathMatch" : /^\/accounts\/[0-9]+\/settings/,
+			"trigger" : '#tab-tools'
+			},
+			],
+
+	popperLoaded : false,
+	tippyLoaded : false,
+
+	loadTippy: function (){
+		// load Popper, then Tippy
+		customTips.loadPopper();
+		customTips.loadTippyJS();
+	},
+
+	loadPopper: function (){
+		// load Popper, then Tippy
+		var js = "https://unpkg.com/@popperjs/core@2";
+		if (!customTips.popperLoaded){
+			$.cachedScript( js ).done(function( data, textStatus, jqxhr ) {
+					console.log( "popper loaded." );
+					customTips.popperLoaded = true;
+					customTips.loadTippyJS();
+				});
+		}
+		else {
+			customTips.loadTippyJS();
+		}
+	},
+
+	loadTippyJS: function (){
+		var js = "https://unpkg.com/tippy.js@6";
+		if (!customTips.tippyLoaded && customTips.popperLoaded){
+			var css = "https://unpkg.com/tippy.js@6/themes/light-border.css";
+			$('head').append( $('<link rel="stylesheet" type="text/css" />').attr('href', css) );
+			$.cachedScript( js ).done(function( data, textStatus, jqxhr ) {
+					console.log( "tippy loaded." );
+					customTips.tippyLoaded = true;
+					customTips.tips.forEach(customTips.callTippy);
+				});
+		}
+	},
+	
+	addTip: function(selector, description, pathMatch, trigger){
+		var flAdd = true;
+		var item;
+		if (trigger != null){
+			item={"selector": selector, "description": description, "pathMatch": pathMatch, "trigger" : trigger};
+		}
+		else {
+			item={"selector": selector, "description": description, "pathMatch": pathMatch};
+		}
+		for (x in customTips.tips){
+			// console.log(x);
+			if (customTips.tips[x].selector == selector){
+				flAdd = false;
+			}
+		}
+		if ( flAdd ) {
+				customTips.tips.push(item);
+				customTips.callTippy(item);
+		}
+		return item;
+	},
+
+	callTippy: function(item){
+		// https://atomiks.github.io/tippyjs/v6/constructor/
+		if (! item.pathMatch.test(window.location.pathname) ){
+			return;
+		}
+		if ( !customTips.popperLoaded || !customTips.tippyLoaded ){
+			customTips.loadTippy();
+			$(document).ajaxSuccess(function( event, xhr, settings ) {
+				customTips.callTippy(item);
+			});
+			if (item.trigger && $(item.trigger).length > 0){
+				$(item.trigger).click(function(){
+					customTips.callTippy(item);
+				});
+			}
+		}
+		if (customTips.tippyLoaded && $(item.selector).length > 0 && ( typeof $(item.selector)[0]._tippy == "undefined" || $(item.selector)[0]._tippy == null )){
+			tippy(item.selector, {
+				content: item.description,
+				allowHTML: true,
+				interactive: true,
+				delay: 300,
+				theme: 'light-border',
+			  });
+			// alternatively add data-tippy-content to elements
+			// <button data-tippy-content="Tooltip">Text</button>
+			// tippy('[data-tippy-content]');
+		}
+	}
+}
+
+/* function hideQuizzesNextPassword(){
+	// does not work due to iframe and cross-origin browser security
+	if (/^\/courses\/[0-9]+\/assignments/.test(window.location.pathname)){
+		$(document).ajaxSuccess(function( event, xhr, settings ) {
+			if (settings.url.indexOf('quiz-api') !== -1){
+				$('#tool_content input[data-automation="sdk-access-code-textinput"]').type='password';
+			}
+		});
+	}
+} */
+
+function myCallback(mutations) {
+	replaceAskInstructor();
+	updateLibraryChatLink(ENV.primaryAccount);
+	addTitlesToCalendarIcons();
+	removePlusApp();
+	updateConferencesPage();
+	replaceLocalVariables();
+	removeChooseHomePageButton();
+	disableMenuOrdering();
+	hideAllContentImport();
+	disableAssignmentClicking();
+	// customTips.tips.forEach(customTips.callTippy);
+	//sortTerms();
+	$(".rce-wrapper div.tox-menubar:hidden").show();
+}
+
+// this is really a generic mutation function now
+// and various callbacks can be done in myCallback
+function docMonitor(){
+	// create an instance of `MutationObserver` named `observer`, 
+	// passing it the callback function
+
+	var observer = new MutationObserver(myCallback);
+
+	// because react has the whole dom in memory, I think document is the only option
+	observer.observe(document, {subtree: true, childList: true});
+}
+
+$(document).ready(function () {
+
+	docMonitor();
+	addTitlesToCalendarIcons();
+	storeLocalVariables();
+	
+	// remove course-level buttons by role
+	removeExportButton();
+	removeResetDeleteButton()
+	
+	setRosterSorting();
+	addUnenrollToCourseListing();
+	sortTerms();
+	removePlusPeopleButton();
+	
+	disableMenuOrdering();
+	
+	fixMenuDisplay();
+	
+	customTips.tips.forEach(customTips.callTippy);
+		
+	// hideQuizzesNextPassword();
+
+	// getObservees();
+
+	googleAnalyticsCode("UA-41867236-1");
+	// do it last
+	//replaceLocalVariables();
+	// setTimeout(function(){ replaceLocalVariables(); },500);
+	$("#wiki_page_show").promise().done(function() {
+		// Handler for .load() called.
+		// console.log('wiki load');
+		replaceLocalVariables();
+	});
+});
+
+
+
+
+
+// not 100% up on modern javascript design patterns, but enclosing all functions in the getObservees parent function
+// this would generate quite a bit of traffic if you have a lot of observees
+// have to think about how this scales.
+// interesting code on https://community.canvaslms.com/docs/DOC-11182-parents-requested-this-at-my-school-multiple-students
+
+function getObservees(){
+	
+	if (! /^\/profile\/observees$/.test(window.location.pathname) ){
+		return;
+	}
+	
+	var url = "/api/v1/users/self/observees?per_page=30";
+	
+	// an array of observee objects
+	var observeeList = [];
+	var dataTableInitialized = false;
+	var currentUser = "";
+	var lastUser = "";
+	var dataTablesScriptLoaded = false;
+	var $observeeTable = $("<table>", {id: "observeeTable", "class": "display", "style": "width:100%"});
+	
+	var courselookup = [];
+	
+
+
+	loadDataTables();
+	
+	// this page already calls the list so hook onto it
+	$(document).ajaxSuccess(function(event, request, settings) {
+		
+		// interestingly the url may include the full domain name
+		if (/\/api\/v1\/users\/[0-9]+\/observees/.test(settings.url)){
+			data = JSON.parse(request.responseText);
+			// console.log(data);
+			// console.log(request);
+			$.each ( data, function (key, user) {
+					// console.log(user.sortable_name + ": " + user.id );
+					observeeList[user.id] = {"name" : user.sortable_name, "id" : user.id, "enrollments" : []};
+					currentUser = user.id;
+					getCourses(user.id);
+					//getEnrollments(user.id);
+				});
+			var nextlink = getNextLink(request);
+			if (nextlink == ''){
+				// console.log('Observees list generated');
+				lastUser = currentUser;
+			}
+		}
+	});
+
+
+	// https://datatables.net/examples/basic_init/zero_configuration.html
+	// loading css, js and creating the table structure
+	// not really taking full advantage of what the library can do, but React is also difficult to deal with
+	// https://datatables.net/examples/plug-ins/range_filtering.html might be handy for the date fields
+	function loadDataTables(){
+		
+		var css = "https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css";
+		$('head').append( $('<link rel="stylesheet" type="text/css" />').attr('href', css) );
+
+		var js = "https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js";
+		$.cachedScript( js ).done(function( data, textStatus, jqxhr ) {
+				// console.log( "DataTables load was performed." );
+				dataTablesScriptLoaded = true;
+			});
+
+		// create data table
+		// var $observeeTable = $("<table>", {id: "observeeTable", "class": "display", "style": "width:100%"});
+		
+
+		//console.log($observeeTable);
+
+		// header row
+		var headerRow = $('<tr>').append(
+			$('<th>').text("Student"),
+			$('<th>').text("Last Canvas Access"),
+			$('<th>').text("Course ID"),
+			$('<th>').text("Last Course Access"),
+			$('<th>').text("Grade"),
+			$('<th>').text("Score"),
+			$('<th>').text("Missing Assignments")
+			);
+
+		// head and body of table
+		$('<thead>').append(headerRow).appendTo($observeeTable);
+
+   		$('<tbody>').appendTo($observeeTable);
+
+   		//console.log($observeeTable);
+   		//console.log($observeeTable[0].tBodies[0]);
+
+	}
+
+	// once we have the complete information about the user, we add them to the table
+	// another approach here would be to build an array suitable for passing to DataTables
+	function addUserToTable(user_id){
+		var studentName = observeeList[user_id].name;
+		var studentLastAccess;
+		var studentLastAccessForSorting;
+		if (observeeList[user_id].lastAccess==null){
+			studentLastAccess="Never";
+			studentLastAccessForSorting="1970-01-01T00:00:00-05:00";
+		}
+		else {
+			studentLastAccess = Date.parse(observeeList[user_id].lastAccess).toLocaleString();
+			studentLastAccessForSorting = observeeList[user_id].lastAccess;
+		}
+		
+
+		$.each ( observeeList[user_id].enrollments, function (key, enrollment) {
+				enrollment.currentGrade = (enrollment.currentGrade==null) ? "": enrollment.currentGrade;
+				enrollment.currentScore = (enrollment.currentScore==null) ? "": enrollment.currentScore;
+				var courseLastAccess;
+				var courseLastAccessForSorting;
+				if (enrollment.lastAccess == null){
+					courseLastAccess="Never";
+					courseLastAccessForSorting="1970-01-01T00:00:00-05:00";
+				}
+				else {
+					courseLastAccess = Date.parse(enrollment.lastAccess).toLocaleString();
+					courseLastAccessForSorting = enrollment.lastAccess;					
+				}
+				
+				
+				$('<tr>', {id: user_id + "-" + enrollment.courseID}).append(
+					$('<td>').html(studentName),
+					$('<td>').attr("data-order", studentLastAccessForSorting).html(studentLastAccess),
+					$('<td>').html("<a href=\"/courses/" + enrollment.courseID + "/grades/" + user_id + "\">" + enrollment.courseCode + "</a>"),
+					$('<td>').attr("data-order", courseLastAccessForSorting).text(courseLastAccess),
+					$('<td>').text(enrollment.currentGrade),
+					$('<td>').text(enrollment.currentScore),
+					$('<td>', {id: user_id + "-" + enrollment.courseID + "-missing"}).text(enrollment.missingSubmissions)
+					).appendTo($observeeTable[0].tBodies[0]);
+				//studentName = "<span style=\"opacity: 0;\">" + studentName + "</span>";
+				//studentLastAccess = "<span style=\"opacity: 0;\">" + studentLastAccess + "</span>";
+			});
+			
+		// best guess that we are working on the last rows of data
+		// ajaxStop waits till all is done, but we could introduce a delay in getting missing assignment data
+		$(document).ajaxStop(function () {
+			if (!dataTableInitialized && user_id == lastUser && dataTablesScriptLoaded){
+
+				//$($observeeTable).DataTable();
+				dataTableInitialized = true;
+				// can't click if it doesn't exist
+				// $('#observeeTable th')[0].click();
+
+				// hide the existing list
+				$(".observees-list.collectionViewItems").hide();
+				// add the table to the existing container
+				$(".observees-list-container").append($('<label>', {text: "Not logged in for X days: "})).append($('<input>', {id: "olderThan", type: "text"}));
+
+				$(".observees-list-container").append($observeeTable);
+				observeeTable = $("#observeeTable").DataTable({
+						"order": [[ 0, "asc" ]]
+					});
+				$.fn.dataTableExt.afnFiltering.push(
+					function( oSettings, aData, iDataIndex ) {
+						var now = new Date();
+						
+						var olderThan = $("#olderThan").val();
+						
+						//console.log(olderThan);
+
+						if (olderThan != ""){
+							var sevenDays = now - (1000 * 60 * 60 * 24 * olderThan);
+							sevenDays = new Date(sevenDays);
+					 
+							var lastLoginDTColumn = 1;
+							var lastDate=aData[lastLoginDTColumn];
+							lastDate = new Date(lastDate);
+							
+							if ( lastDate.getTime() < sevenDays.getTime() ) {
+								//console.log("true");
+								return true;
+							}
+							else {
+								return false;
+							}
+						}
+						
+						return true;
+					}
+				);
+				$('#olderThan').blur( function() { observeeTable.draw(); } );
+				$(".observees-list.collectionViewItems").show();
+				$(".observees-list.collectionViewItems").insertAfter($("#observeeTable_wrapper"));
+			}
+		});
+	}
+
+	// add enrollment object data to the user in the base array
+	function addEnrollmentToObservee(user_id, enrollment){
+//		observeeList[user_id].enrollments.push( {"lastAccess" : enrollment.last_activity_at, "courseCode" : enrollment.course.courseCode, "courseID" : enrollment.course._id, "currentGrade" : enrollment.grades.currentGrade, "currentScore" : enrollment.grades.currentScore, "missingSubmissions" : 0} );
+		if (courselookup["cs" + enrollment.course_id.toString()] && enrollment.type=='StudentEnrollment'){
+			observeeList[user_id].enrollments.push( {"lastAccess" : enrollment.last_activity_at, "courseCode" : courselookup["cs" + enrollment.course_id.toString()], "courseID" : enrollment.course_id, "currentGrade" : enrollment.grades.current_grade, "currentScore" : enrollment.grades.current_score, "missingSubmissions" : 0} );
+			if (observeeList[user_id].lastAccess){
+				// is the date of this enrollment more recent than the stored information on the user
+				if (Date.parse(observeeList[user_id].lastAccess) < Date.parse(enrollment.last_activity_at)){
+					observeeList[user_id].lastAccess = enrollment.last_activity_at;
+				}
+			}
+			else {
+				observeeList[user_id].lastAccess=enrollment.last_activity_at;
+			}
+		}
+	}
+
+	// just counting the missing submissions and adding them to the total for the course for the user
+	function addToMissingSubmissionsCtForUser(user_id, course_id){
+		$.each ( observeeList[user_id].enrollments, function (key, enrollment) {
+				if (enrollment.courseID == course_id){
+						enrollment.missingSubmissions ++;
+						var tc = $("#" + user_id + "-" + enrollment.courseID + "-missing");
+						tc.text(enrollment.missingSubmissions);
+						$observeeTable.find(tc).text(enrollment.missingSubmissions);
+						if (typeof observeeTable !== 'undefined'){
+						    observeeTable.cell("#" + user_id + "-" + enrollment.courseID + "-missing").data(enrollment.missingSubmissions);
+							observeeTable.draw();
+						}
+				}
+			});
+	}
+	
+	function updateTable(){
+		observeeTable.draw();
+	}
+	
+	getObservees.addToMissingSubmissionsCtForUser = addToMissingSubmissionsCtForUser;
+	getObservees.updateTable = updateTable;
+	
+	function getCourses(user_id){
+		// /api/v1/users/273985/courses?include[]=total_scores
+		var url = "/api/v1/users/" + user_id + "/courses?per_page=100&include[]=total_scores";
+		$.ajax({
+			url: url,
+			type: 'GET',
+			success: function(data,textStatus,xhr) {
+					// the first element returned in the graphql data is called data
+					//console.log(data.data);
+					$.each ( data, function (key, course) {
+							// console.log(course);
+							if (!course.access_restricted_by_date){
+								courselookup["cs" + course.id.toString()]=course.course_code;
+							}
+							//addEnrollmentToObservee(user_id, course);
+						});
+					//console.log(courselookup);
+					getEnrollments(user_id);
+				}
+			});
+		}
+
+	function getEnrollments(user_id, linkToGet){
+		//console.log("Getting enrollments for " + user_id);
+		var url = "/api/v1/users/" + user_id + "/enrollments?per_page=100&state[]=active";
+
+		$.ajax({
+			url: url,
+			type: 'GET',
+			success: function(data,textStatus,xhr) {
+					// the first element returned in the graphql data is called data
+					//console.log(data.data);
+					$.each ( data, function (key, enrollment) {
+							//console.log(enrollment);
+							addEnrollmentToObservee(user_id, enrollment);
+							//console.log(user_id + " " + course.course_code + ": " );
+							//if (course.enrollments){
+							//	console.log(course.enrollments[0].computed_current_grade + "/" + course.enrollments[0].computed_current_score);
+							//}
+						});
+					// get any missing submission data - separate API call, although I would guess it is technically possible in graphql
+					// I just could not work out how
+					// build the row before we have the missing submission data
+					addUserToTable(user_id);
+					setTimeout(getMissingSubmissions, 1000 + Math.floor(Math.random() * 500), user_id);
+					// getMissingSubmissions(user_id);
+				}
+			});
+	}
+
+	// getting missing submissions
+	function getMissingSubmissions(user_id, linkToGet){
+		//console.log("Getting missing submissions for " + user_id);
+		var url = "/api/v1/users/" + user_id + "/missing_submissions?include[]=planner_overrides&include[]=course&filter[]=submittable";
+		if (linkToGet != null){
+			url = linkToGet;
+		}
+		//console.log(url);
+		$.ajax({
+			url: url,
+			type: 'GET',
+			success: function(data,textStatus,xhr) {
+					$.each ( data, function (key, submission) {
+							// console.log(submission);
+							//console.log(user_id + " " + submission.course.course_code + ": " + submission.name);
+							addToMissingSubmissionsCtForUser(user_id, submission.course.id);
+						});
+					var nextlink = getNextLink(xhr);
+					//console.log(nextlink);
+					if (nextlink !== ''){
+						// cannot do simple loops because ajax is asynchronous
+						getMissingSubmissions (user_id, nextlink);
+					}
+					// else {
+						// last page so we are ready to add the user data to the table
+						// moved to getEnrollmentsByGraphQL
+						// addUserToTable(user_id);
+					// }
+				}
+			});
+	}
+
+	// utility function to extract the next link from the ajax headers
+	function getNextLink(xhr){
+		var links = xhr.getResponseHeader("link"); 
+		var linksArr =links.split(',');
+		var nextlink = '';
+		var thislink = '';
+		for (var x=0; x<linksArr.length; x++){
+			thislink = linksArr[x];
+			if (thislink.indexOf('rel="next"')>-1){
+				nextlink = thislink.split('>')[0].substring(1);
+			}
+		}
+		return nextlink;
+	}
+}
+
+if (/^\/profile\/observees$/.test(window.location.pathname) ){
+	var observeeTable;
+	getObservees();
+}

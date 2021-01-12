@@ -1,0 +1,121 @@
+/* default listing icon size for external tools in wysiwyg editor */
+.option.ui-state-default img  {
+    height: 16px;
+    width: 16px;
+}
+
+span[aria-label="Apps"][data-mce-component="true"] li img {
+width: 30px;
+height: 30px;
+}
+
+/* on courses listing screen sub-links for course components */
+
+div.rc-course-links ul { 
+	visibility: hidden;
+    list-style: none;
+    font-size: 0.8rem;
+    margin-left: 0;
+}
+div.rc-course-links ul li {
+    display: inline;
+}
+div.rc-course-links ul li:not(:first-child):before {
+    content: " | ";
+}
+div.rc-course-links ul li a {
+    color: #999;
+}
+
+tr:hover .rc-course-links ul {
+	visibility: visible !important;
+}
+
+/* sub-account administration */
+
+ul#admin-tray-sam, ul#admin-tray-sam ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+/* nested sub list */
+ul#admin-tray-sam ul {
+    margin-left: 5px;
+    border-left: 1px dotted #ccc;
+    padding-left: 5px;
+}
+ul#admin-tray-sam a.toggle::after {
+    float: right;
+    content: '\2B18';
+}
+input#admin-tray-sam-search {
+    width: 95%;
+}
+ol#admin-tray-sam-results {
+    border-bottom: 2px solid #ccc;
+    margin: 0;
+    padding-left: 18px;
+}
+li#adm-tray-subacctray a.reload::after {
+    float: right;
+    content: '\21BB';
+}
+li#adm-tray-subacctray .loader {
+    border: 8px solid #eee;
+    border-top: 8px solid #ccc;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: adm-tray-subacctray-load 2s linear infinite;
+}
+@keyframes adm-tray-subacctray-load {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* pages options */
+div.control-group.options .checkbox {
+	display: inline-block;
+}
+
+/* changing behavior of Publish/Unpublish */
+#course_status_form .disabled{
+	border:none;
+	background: transparent;
+	color: black;
+	font-weight: bold;
+	opacity: 1;
+}
+
+#course_status_form .disabled.btn-published{
+	color: green;
+}
+
+#course_status_form .disabled.btn-unpublish{
+	color: red;
+}
+
+#course_status_form{
+	display:flex;
+	flex-direction: row;
+}
+
+#course_status_form button.disabled{
+	order: 0;
+}
+
+#course_status_form button:not(.disabled){
+	order: 1;
+}
+
+#course_status_form button.disabled i::after{
+	content: " Course is ";
+}
+
+#section-tabs .section .conferences {
+	display: none;
+}
+
+#nav_form #nav_edit_tab_id_12{
+   display:none;
+}

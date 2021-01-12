@@ -1,0 +1,11 @@
+
+// add button for college account
+
+$(document).ready(function () {
+	// addCollegeResourceButton('https://www.nvcc.edu/canvas/', 'NOVA Resources');
+	// added to Help menu instead of Ask your instructor
+
+	setPref("NVCC", "removeConcludeButtonPref", true);
+
+	setPrimaryAccount('NVCC');
+});
